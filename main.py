@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import requests
+import csv
 
 
 def filter_by_week(data):
@@ -27,6 +28,19 @@ def retrieve_data_with_basic_auth(url, username, password):
     return []
 
 
+def extract_names(data):
+    names = [header["name"] for header in data["headers"]]
+    return names
+
+
+def write_data_to_csv(headers, data, filename):
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        for row in data:
+            writer.writerow(row)
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
@@ -35,5 +49,7 @@ if __name__ == '__main__':
     password = 'Dhis@2022'
     data = retrieve_data_with_basic_auth(url, username, password)
     filtered_data = filter_by_week(data.get('rows'))
-    print(len(filtered_data))
+    names_list = extract_names(data)
+    filename = 'data.csv'
+    write_data_to_csv(names_list, filtered_data, filename)
 
