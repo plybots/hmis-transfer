@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timedelta
 import requests
 import csv
+import requests
+from requests.auth import HTTPBasicAuth
 
 
 def filter_by_week(data, approved=False, seven_days=False):
@@ -42,10 +44,10 @@ def filter_by_week(data, approved=False, seven_days=False):
                 org_data[key][entry[11]] = [entry, ]
 
     count_data = {}
-    for key, value in org_data.items():
+    for key, _value in org_data.items():
         count_data[key] = {}
-        for entry in value:
-            count_data[key][entry] = len(value)
+        for entry, elms in _value.items():
+            count_data[key][entry] = len(elms)
     return count_data
 
 
@@ -86,9 +88,12 @@ if __name__ == '__main__':
     username = 'moh-rch.dmurokora'
     password = 'Dhis@2022'
     data = retrieve_data_with_basic_auth(url, username, password)
+    # print("Data received:")
+
     filtered_data = filter_by_week(data, approved=filter_by_approved)
+    # print(filtered_data)
     names_list = ["dataelement", "period", "orgunit", "category", "attributeoptioncombo", "value",
-                  "storedby", "lastupdated", "comment", "followup", "deleted"]
+                  "storedby", "lastupdateds", "comment", "followup", "deleted"]
     for day, value in filtered_data.items():
         day_str = day.split(" ")[0]
         filename = f'data_{day_str}.csv'
@@ -101,7 +106,7 @@ if __name__ == '__main__':
                 "HllvX50cXC0",
                 count,
                 "admin",
-                day,
+                "",
                 "",
                 "FALSE",
                 "null"
@@ -109,3 +114,19 @@ if __name__ == '__main__':
             csv_data.append(data)
         write_data_to_csv(names_list, csv_data, filename)
 
+        # Post the CSV file to the specified URL
+        url = "https://ug.sk-engine.cloud/hmis/api/dataValueSets?async=true&dryRun=false&strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
+
+        with open(filename, 'rb') as file:
+            headers = {
+                'Content-Type': 'application/csv'
+            }
+            response = requests.post(url, files={"file": file}, headers=headers,
+                                     auth=HTTPBasicAuth('admin', 'district'))
+
+        if response.status_code == 200:
+            # os.remove(filename)
+            print(f"CSV file '{filename}' posted successfully.")
+            print("Server response:", response.text)
+        else:
+            print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
