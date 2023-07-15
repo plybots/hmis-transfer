@@ -75,32 +75,17 @@ def write_data_to_csv(headers, data, filename):
             writer.writerow(row)
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    filter_by_approved = False
-    last_seven_days = True
-    today = datetime.now()
-    date_today = today.date().strftime("%Y-%m-%d")
-    date_last_7_days = (today - timedelta(days=8)).date().strftime("%Y-%m-%d")
-    url = f'https://hmis.health.go.ug/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5&startDate={date_today}&endDate={date_today}'
-    if last_seven_days:
-        url = f'https://hmis.health.go.ug/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5&startDate={date_last_7_days}&endDate={date_today}'
-    username = 'moh-rch.dmurokora'
-    password = 'Dhis@2022'
-    data = retrieve_data_with_basic_auth(url, username, password)
-    # print("Data received:")
-
-    filtered_data = filter_by_week(data, approved=filter_by_approved)
-    # print(filtered_data)
+def export_data(filtered_data, indicator):
     names_list = ["dataelement", "period", "orgunit", "category", "attributeoptioncombo", "value",
                   "storedby", "lastupdateds", "comment", "followup", "deleted"]
+    label = "created" if indicator == 'DVj4areqLLK' else "approved"
     for day, value in filtered_data.items():
         day_str = day.split(" ")[0]
-        filename = f'data_{day_str}.csv'
+        filename = f'data_{day_str}_{label}.csv'
         csv_data = []
         for org, count in value.items():
-            data = [
-                "DVj4areqLLK" if not filter_by_approved else "BDLKmLCokSH",
+            _data = [
+                indicator,
                 day_str, org,
                 "HllvX50cXC0",
                 "HllvX50cXC0",
@@ -111,17 +96,17 @@ if __name__ == '__main__':
                 "FALSE",
                 "null"
             ]
-            csv_data.append(data)
+            csv_data.append(_data)
         write_data_to_csv(names_list, csv_data, filename)
 
         # Post the CSV file to the specified URL
-        url = "https://ug.sk-engine.cloud/hmis/api/dataValueSets?async=true&dryRun=false&strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
+        post_url = "https://ug.sk-engine.cloud/hmis/api/dataValueSets?async=true&dryRun=false&strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
 
         with open(filename, 'rb') as file:
             headers = {
                 'Content-Type': 'application/csv'
             }
-            response = requests.post(url, files={"file": file}, headers=headers,
+            response = requests.post(post_url, files={"file": file}, headers=headers,
                                      auth=HTTPBasicAuth('admin', 'district'))
 
         if response.status_code == 200:
@@ -130,3 +115,25 @@ if __name__ == '__main__':
             print("Server response:", response.text)
         else:
             print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
+
+
+# Press the green button in the gutter to run the script.
+if __name__ == '__main__':
+    last_seven_days = True
+    today = datetime.now()
+    date_today = today.date().strftime("%Y-%m-%d")
+    date_last_7_days = (today - timedelta(days=8)).date().strftime("%Y-%m-%d")
+    url = f'https://hmis.health.go.ug/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5&startDate={date_today}&endDate={date_today}'
+    if last_seven_days:
+        url = f'https://hmis.health.go.ug/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5&startDate={date_last_7_days}&endDate={date_today}'
+    username = 'moh-rch.dmurokora'
+    password = 'Dhis@2022'
+    data = retrieve_data_with_basic_auth(url, username, password)
+    print("Data received:")
+
+    filtered_data = filter_by_week(data, approved=False)
+    approved_data = filter_by_week(data, approved=True)
+    print("Export created records")
+    export_data(filtered_data, "DVj4areqLLK")
+    print("Export approved records")
+    export_data(approved_data, "BDLKmLCokSH")
