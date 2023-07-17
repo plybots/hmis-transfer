@@ -1,16 +1,15 @@
-import json
+import csv
 import os
 from datetime import datetime, timedelta
-import requests
-import csv
+
 import requests
 from requests.auth import HTTPBasicAuth
 
 
-def filter_by_week(data, approved=False, seven_days=False):
+def filter_by_week(data, not_approved=False, seven_days=False):
     approved_key = 'twVlVWM3ffz'
     approved_position = None
-    if approved:
+    if not_approved:
         _count = 0
         for o in data['headers']:
             if o.get('name') == approved_key:
@@ -20,8 +19,8 @@ def filter_by_week(data, approved=False, seven_days=False):
 
     _filtered_data = {}
     for entry in data.get('rows'):
-        if approved and approved_position:
-            if str(entry[approved_position]).strip().lower() != 'approved':
+        if not_approved and approved_position:
+            if not str(entry[approved_position]).strip().lower() == 'not approved':
                 continue
         date_str = entry[2]
         if date_str:
@@ -78,7 +77,7 @@ def write_data_to_csv(headers, data, filename):
 def export_data(filtered_data, indicator):
     names_list = ["dataelement", "period", "orgunit", "category", "attributeoptioncombo", "value",
                   "storedby", "lastupdateds", "comment", "followup", "deleted"]
-    label = "created" if indicator == 'DVj4areqLLK' else "approved"
+    label = "created" if indicator == 'DVj4areqLLK' else "not_approved"
     for day, value in filtered_data.items():
         day_str = day.split(" ")[0]
         filename = f'data_{day_str}_{label}.csv'
@@ -100,7 +99,9 @@ def export_data(filtered_data, indicator):
         write_data_to_csv(names_list, csv_data, filename)
 
         # Post the CSV file to the specified URL
-        post_url = "https://ug.sk-engine.cloud/hmis/api/dataValueSets?async=true&dryRun=false&strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
+        post_url = "https://ug.sk-engine.cloud/hmis/api/dataValueSets?async=true&dryRun=false&" \
+                   "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
+                   "orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
 
         with open(filename, 'rb') as file:
             headers = {
@@ -117,23 +118,31 @@ def export_data(filtered_data, indicator):
             print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    last_seven_days = True
+def run(last_seven_days=False, not_approved=False, base_url='https://ug.sk-engine.cloud/hmis'):
     today = datetime.now()
     date_today = today.date().strftime("%Y-%m-%d")
     date_last_7_days = (today - timedelta(days=8)).date().strftime("%Y-%m-%d")
-    url = f'https://hmis.health.go.ug/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5&startDate={date_today}&endDate={date_today}'
+    url = f'{base_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&' \
+          f'totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&' \
+          f'attributeCos=l4UMmqvSBe5&startDate={date_today}&endDate={date_today}'
     if last_seven_days:
-        url = f'https://hmis.health.go.ug/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5&startDate={date_last_7_days}&endDate={date_today}'
-    username = 'moh-rch.dmurokora'
-    password = 'Dhis@2022'
+        url = f'{base_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
+              f'order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5' \
+              f'&startDate={date_last_7_days}&endDate={date_today}'
+
     data = retrieve_data_with_basic_auth(url, username, password)
     print("Data received:")
+    filtered_data = filter_by_week(data, not_approved)
+    print(f"Export {'created' if not not_approved else 'not approved'} records")
+    export_data(filtered_data, "DVj4areqLLK" if not not_approved else "BDLKmLCokSH")
 
-    filtered_data = filter_by_week(data, approved=False)
-    approved_data = filter_by_week(data, approved=True)
-    print("Export created records")
-    export_data(filtered_data, "DVj4areqLLK")
-    print("Export approved records")
-    export_data(approved_data, "BDLKmLCokSH")
+
+# Access Credentials
+username = 'admin'
+password = 'Nomisr123$'
+
+if __name__ == '__main__':
+    # get records created today
+    run()
+    # get records not approved in the last seven days
+    run(last_seven_days=True, not_approved=True)
