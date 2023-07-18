@@ -119,12 +119,16 @@ def export_data(filtered_data, indicator):
 
 
 def run(last_seven_days=False, not_approved=False, base_url='https://ug.sk-engine.cloud/hmis'):
+    get_all = True
     today = datetime.now()
     date_today = today.date().strftime("%Y-%m-%d")
+    create_start = date_today
+    if get_all:
+        create_start = (today - timedelta(days=3285)).date().strftime("%Y-%m-%d")
     date_last_7_days = (today - timedelta(days=8)).date().strftime("%Y-%m-%d")
     url = f'{base_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&' \
           f'totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&' \
-          f'attributeCos=l4UMmqvSBe5&startDate={date_today}&endDate={date_today}'
+          f'attributeCos=l4UMmqvSBe5&startDate={create_start}&endDate={date_today}'
     if last_seven_days:
         url = f'{base_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
               f'order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&attributeCos=l4UMmqvSBe5' \
