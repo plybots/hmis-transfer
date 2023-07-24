@@ -5,6 +5,16 @@ from datetime import datetime, timedelta
 import requests
 from requests.auth import HTTPBasicAuth
 
+''' POST CREDENTIALS '''
+base_post_url = "https://ug.sk-engine.cloud"
+post_username = 'admin'
+post_password = 'Nomisr123$'
+
+''' GET CREDENTIALS '''
+base_get_url = 'https://hmis.health.go.ug'
+get_username = 'moh-rch.dmurokora'
+get_password = 'Dhis@2022'
+
 cert_elms = [
     'sfpqAeqKeyQ',
     'zD0E77W4rFs',
@@ -141,9 +151,9 @@ def filter_by_week(
     return count_data
 
 
-def retrieve_data_with_basic_auth(url, username, password):
-    response = requests.get(url, auth=(username, password))
-
+def retrieve_data_with_basic_auth(url):
+    response = requests.get(url, auth=(get_username, get_password))
+    print(response.status_code)
     if response.status_code == 200:
         return response.json()
 
@@ -193,7 +203,7 @@ def export_data(filtered_data, indicator, label):
         write_data_to_csv(names_list, csv_data, filename)
 
         # Post the CSV file to the specified URL
-        post_url = "https://ug.sk-engine.cloud/hmis/api/dataValueSets?async=true&dryRun=false&" \
+        post_url = f"{base_post_url}/hmis/api/dataValueSets?async=true&dryRun=false&" \
                    "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
                    "orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
 
@@ -201,8 +211,9 @@ def export_data(filtered_data, indicator, label):
             headers = {
                 'Content-Type': 'application/csv'
             }
+
             response = requests.post(post_url, files={"file": file}, headers=headers,
-                                     auth=HTTPBasicAuth('admin', 'district'))
+                                     auth=HTTPBasicAuth(post_username, post_password))
 
         if response.status_code == 200:
             # os.remove(filename)
@@ -212,10 +223,10 @@ def export_data(filtered_data, indicator, label):
             print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
 
 
-def get_url(start, end, base_url='https://ug.sk-engine.cloud/hmis', last7=False):
-    return f'{base_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&' \
+def get_url(start, end, last7=False):
+    return f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&' \
            f'totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&' \
-           f'attributeCos=l4UMmqvSBe5&startDate={start}&endDate={end}' if not last7 else f'{base_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
+           f'attributeCos=l4UMmqvSBe5&startDate={start}&endDate={end}' if not last7 else f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
                                                                                          f'&startDate={start}&endDate={end}'
 
 
@@ -259,7 +270,7 @@ def run(
             start, end = get_last_month_dates()
             url = get_url(start, end)
 
-    data = retrieve_data_with_basic_auth(url, username, password)
+    data = retrieve_data_with_basic_auth(url)
     print("Data received:")
     log_text = ''
     label_text = 'created'
@@ -302,11 +313,13 @@ def run(
     export_data(filtered_data, indicator, label_text)
 
 
-# Access Credentials
-username = 'admin'
-password = 'Nomisr123$'
-
 if __name__ == '__main__':
+    print(
+        f"Using {base_get_url} for GET requests"
+    )
+    print(
+        f"Using {base_post_url} for POST requests"
+    )
     # get records created today
     run()
     # get records not approved in the last seven days
