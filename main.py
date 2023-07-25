@@ -15,6 +15,8 @@ base_get_url = 'https://hmis.health.go.ug'
 get_username = 'moh-rch.dmurokora'
 get_password = 'Dhis@2022'
 
+error_date = '1970-01-01 00:00:00.00'
+
 cert_elms = [
     'sfpqAeqKeyQ',
     'zD0E77W4rFs',
@@ -103,8 +105,11 @@ def filter_by_week(
                 continue
         date_str = entry[date_of_death_position] if (notifications or certfications) else entry[2]
         if date_str:
-            date_obj = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f%z' if (
-                    notifications or certfications) else "%Y-%m-%d %H:%M:%S.%f").date()
+            try:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f%z' if (
+                        notifications or certfications) else "%Y-%m-%d %H:%M:%S.%f").date()
+            except Exception:
+                date_obj = datetime.strptime(error_date, '%Y-%m-%d %H:%M:%S.%f')
             date = date_obj.strftime("%Y-%m-%d %H:%M:%S.%f")
             is_notification = False
             is_certification = False
@@ -202,6 +207,9 @@ def export_data(filtered_data, indicator, label):
             csv_data.append(_data)
         write_data_to_csv(names_list, csv_data, filename)
 
+        if '1970' in filename:
+            print(filename)
+            continue
         # Post the CSV file to the specified URL
         post_url = f"{base_post_url}/hmis/api/dataValueSets?async=true&dryRun=false&" \
                    "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
