@@ -244,7 +244,7 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
             delete_after_merge (bool, optional): Whether to delete the original CSV files after merging. Default is True.
     """
     # Get a list of all CSV files in the folder
-    csv_files = [file for file in os.listdir(folder_path) if file.endswith('.csv')]
+    csv_files = [file for file in os.listdir(folder_path) if file.endswith('.csv') and '1970' not in file]
 
     # Initialize an empty DataFrame to store the merged data
     merged_df = pd.DataFrame()
