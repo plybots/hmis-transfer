@@ -1,6 +1,7 @@
 import csv
 import os
 from datetime import datetime, timedelta
+import pandas as pd
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -207,31 +208,65 @@ def export_data(filtered_data, indicator, label):
             csv_data.append(_data)
         write_data_to_csv(names_list, csv_data, filename)
 
-        if '1970' in filename:
-            print(filename)
-            continue
-        # Post the CSV file to the specified URL
-        post_url = f"{base_post_url}/hmis/api/dataValueSets?async=true&dryRun=false&" \
-                   "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
-                   "orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
 
-        with open(filename, 'rb') as file:
-            headers = {
-                'Content-Type': 'application/csv'
-            }
+def post_csv_data(filename):
+    # if '1970' in filename:
+    #     print(filename)
+    #     continue
+    # Post the CSV file to the specified URL
+    post_url = f"{base_post_url}/hmis/api/dataValueSets?async=true&dryRun=false&" \
+               "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
+               "orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
 
-            response = requests.post(post_url, files={"file": file}, headers=headers,
-                                     auth=HTTPBasicAuth(post_username, post_password))
+    with open(filename, 'rb') as file:
+        headers = {
+            'Content-Type': 'application/csv'
+        }
 
-        if response.status_code == 200:
-            # os.remove(filename)
-            print(f"CSV file '{filename}' posted successfully.")
-            print("Server response:", response.text)
-        else:
-            print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
-        # sleep for 30 seconds
-        import time
-        time.sleep(30)
+        response = requests.post(post_url, files={"file": file}, headers=headers,
+                                 auth=HTTPBasicAuth(post_username, post_password))
+
+    if response.status_code == 200:
+        # os.remove(filename)
+        print(f"CSV file '{filename}' posted successfully.")
+        print("Server response:", response.text)
+    else:
+        print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
+
+
+def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', delete_after_merge=True):
+    """
+        Merge all CSV files in the given folder into one.
+
+        Parameters:
+            folder_path (str): The path to the folder containing the CSV files.
+            output_file_name (str, optional): The name of the output merged CSV file. Default is 'merged_file.csv'.
+            delete_after_merge (bool, optional): Whether to delete the original CSV files after merging. Default is True.
+    """
+    # Get a list of all CSV files in the folder
+    csv_files = [file for file in os.listdir(folder_path) if file.endswith('.csv')]
+
+    # Initialize an empty DataFrame to store the merged data
+    merged_df = pd.DataFrame()
+
+    # Iterate through each CSV file and merge it with the existing data
+    for file in csv_files:
+        file_path = os.path.join(folder_path, file)
+        df = pd.read_csv(file_path)
+        merged_df = pd.concat([merged_df, df], ignore_index=True)
+
+    # Save the merged data to a new CSV file
+    output_file_path = os.path.join(folder_path, output_file_name)
+    merged_df.to_csv(output_file_path, index=False)
+
+    print(f"All CSV files in the folder have been merged into {output_file_path}.")
+
+    # Delete the original CSV files if specified
+    if delete_after_merge:
+        for file in csv_files:
+            file_path = os.path.join(folder_path, file)
+            os.remove(file_path)
+    post_csv_data(output_file_path)
 
 
 def get_url(start, end, last7=False):
@@ -343,3 +378,6 @@ if __name__ == '__main__':
     run(notifications_last_month=True)
     # get certifications for last month
     run(certifications_last_month=True)
+
+    folder_path = os.path.dirname(os.path.abspath(__file__))  # Set the current directory as the folder path
+    merge_csv_files_in_folder(folder_path)
