@@ -229,6 +229,9 @@ def export_data(filtered_data, indicator, label):
             print("Server response:", response.text)
         else:
             print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
+        # sleep for 30 seconds
+        import time
+        time.sleep(30)
 
 
 def get_url(start, end, last7=False):
