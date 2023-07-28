@@ -193,6 +193,7 @@ def convert_date_format(input_date):
 def count_for_next_month():
     print("Retrieving totals")
     data = retrieve_data_with_basic_auth(data_totals_url)
+    print(f"Data received: {len(data.get('rows', []))}")
     filename = f'data_totals.csv'
     csv_data = []
     for item in data.get('rows', []):
@@ -311,9 +312,11 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
     # Delete the original CSV files if specified
     if delete_after_merge:
         for file in csv_files:
+            if 'data_totals.csv' == file:
+                continue
             file_path = os.path.join(folder_path, file)
             os.remove(file_path)
-    post_csv_data(output_file_path)
+    # post_csv_data(output_file_path)
 
 
 def get_url(start, end, last7=False):
