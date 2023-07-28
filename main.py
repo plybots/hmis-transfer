@@ -316,7 +316,7 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
                 continue
             file_path = os.path.join(folder_path, file)
             os.remove(file_path)
-    # post_csv_data(output_file_path)
+    post_csv_data(output_file_path)
 
 
 def get_url(start, end, last7=False):
