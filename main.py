@@ -18,6 +18,26 @@ get_password = 'Dhis@2022'
 
 error_date = '1970-01-01 00:00:00.00'
 
+data_totals_url = 'https://hmis.health.go.ug/api/37/analytics?' \
+                  'dimension=pe%3A202306%3B202301%3B202302%3B202303%' \
+                  '3B202304%3B202305%3B202307%3B202308%3B202309%3B202310%' \
+                  '3B202311%3B202312,ou%3ALEVEL-Sg9YZ6o7bCQ,dx%3AvyOajQA5xTu%3BT8W0wbzErSF&' \
+                  'displayProperty=NAME&includeNumDen=true&skipMeta=true&skipData=false'
+
+csv_names_list = [
+    "dataelement",
+    "period",
+    "orgunit",
+    "category",
+    "attributeoptioncombo",
+    "value",
+    "storedby",
+    "lastupdateds",
+    "comment",
+    "followup",
+    "deleted"
+]
+
 cert_elms = [
     'sfpqAeqKeyQ',
     'zD0E77W4rFs',
@@ -157,12 +177,47 @@ def filter_by_week(
     return count_data
 
 
+def convert_date_format(input_date):
+    input_date_obj = datetime.strptime(input_date, "%Y%m")
+    new_month = input_date_obj.month + 1
+    if new_month > 12:
+        new_month = 1
+        new_year = input_date_obj.year + 1
+    else:
+        new_year = input_date_obj.year
+    new_date_obj = datetime(new_year, new_month, 1)
+    new_date_str = new_date_obj.strftime("%Y-%m-%d")
+    return new_date_str
+
+
+def count_for_next_month():
+    print("Retrieving totals")
+    data = retrieve_data_with_basic_auth(data_totals_url)
+    filename = f'data_totals.csv'
+    csv_data = []
+    for item in data.get('rows', []):
+        _data = [
+            'IlxRlGJLPdU',
+            convert_date_format(item[1]),
+            item[2],
+            "HllvX50cXC0",
+            "HllvX50cXC0",
+            item[3],
+            "admin",
+            "",
+            "",
+            "FALSE",
+            "null"
+        ]
+        csv_data.append(_data)
+    write_data_to_csv(csv_names_list, csv_data, filename)
+
+
+
 def retrieve_data_with_basic_auth(url):
     response = requests.get(url, auth=(get_username, get_password))
-    print(response.status_code)
     if response.status_code == 200:
         return response.json()
-
     return []
 
 
@@ -182,12 +237,6 @@ def write_data_to_csv(headers, data, filename):
 
 
 def export_data(filtered_data, indicator, label):
-    names_list = ["dataelement", "period", "orgunit", "category", "attributeoptioncombo", "value",
-                  "storedby", "lastupdateds", "comment", "followup", "deleted"]
-    # label = "created"
-    # if indicator == 'DVj4areqLLK':
-    #     label = "not_approved"
-
     for day, value in filtered_data.items():
         day_str = day.split(" ")[0]
         filename = f'data_{day_str}_{label}.csv'
@@ -195,7 +244,8 @@ def export_data(filtered_data, indicator, label):
         for org, count in value.items():
             _data = [
                 indicator,
-                day_str, org,
+                day_str,
+                org,
                 "HllvX50cXC0",
                 "HllvX50cXC0",
                 count,
@@ -206,13 +256,10 @@ def export_data(filtered_data, indicator, label):
                 "null"
             ]
             csv_data.append(_data)
-        write_data_to_csv(names_list, csv_data, filename)
+        write_data_to_csv(csv_names_list, csv_data, filename)
 
 
 def post_csv_data(filename):
-    # if '1970' in filename:
-    #     print(filename)
-    #     continue
     # Post the CSV file to the specified URL
     post_url = f"{base_post_url}/hmis/api/dataValueSets?async=true&dryRun=false&" \
                "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
@@ -317,7 +364,7 @@ def run(
             url = get_url(start, end)
 
     data = retrieve_data_with_basic_auth(url)
-    print("Data received:")
+    print(f"Data received: {len(data.get('rows', []))}")
     log_text = ''
     label_text = 'created'
     filtered_data = {}
@@ -378,6 +425,9 @@ if __name__ == '__main__':
     run(notifications_last_month=True)
     # get certifications for last month
     run(certifications_last_month=True)
+    # get totals
+    count_for_next_month()
 
     folder_path = os.path.dirname(os.path.abspath(__file__))  # Set the current directory as the folder path
     merge_csv_files_in_folder(folder_path)
+
