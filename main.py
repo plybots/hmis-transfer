@@ -216,6 +216,7 @@ def count_for_next_month():
 
 
 def retrieve_data_with_basic_auth(url):
+    print(url)
     response = requests.get(url, auth=(get_username, get_password))
     if response.status_code == 200:
         return response.json()
@@ -316,14 +317,15 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
                 continue
             file_path = os.path.join(folder_path, file)
             os.remove(file_path)
-    post_csv_data(output_file_path)
+    # post_csv_data(output_file_path)
 
 
 def get_url(start, end, last7=False):
-    return f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&page=1&pageSize=100&' \
-           f'totalPages=true&order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&' \
-           f'attributeCos=l4UMmqvSBe5&startDate={start}&endDate={end}' if not last7 else f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
-                                                                                         f'&startDate={start}&endDate={end}'
+    return f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
+           f'order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&' \
+           f'attributeCos=l4UMmqvSBe5&startDate={start}&endDate={end}' \
+        if (not last7) else (f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&'
+                             f'paging=false&startDate={start}&endDate={end}')
 
 
 def get_last_month_dates():
@@ -345,7 +347,7 @@ def run(
     today = datetime.now()
     date_today = today.date().strftime("%Y-%m-%d")
     url = get_url(date_today, date_today)
-    several_years_ago = (today - timedelta(days=3285)).date().strftime("%Y-%m-%d")
+    several_years_ago = (today - timedelta(days=7300)).date().strftime("%Y-%m-%d")
     if last_seven_days is not None or not_approved is not None:
         get_all = True
         create_start = date_today
