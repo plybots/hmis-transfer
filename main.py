@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 from datetime import datetime, timedelta
 import pandas as pd
@@ -25,17 +26,13 @@ data_totals_url = 'https://hmis.health.go.ug/api/37/analytics?' \
                   'displayProperty=NAME&includeNumDen=true&skipMeta=true&skipData=false'
 
 csv_names_list = [
-    "dataelement",
+    "dataSet",
+    "dataElement",
     "period",
-    "orgunit",
-    "category",
-    "attributeoptioncombo",
-    "value",
-    "storedby",
-    "lastupdateds",
-    "comment",
-    "followup",
-    "deleted"
+    "orgUnit",
+    "categoryOptionCombo",
+    "attributeOptionCombo",
+    "value"
 ]
 
 cert_elms = [
@@ -198,17 +195,13 @@ def count_for_next_month():
     csv_data = []
     for item in data.get('rows', []):
         _data = [
+            'PSEZ9mIUwwe',
             'IlxRlGJLPdU',
             convert_date_format(item[1]),
             item[2],
             "HllvX50cXC0",
             "HllvX50cXC0",
-            item[3],
-            "admin",
-            "",
-            "",
-            "FALSE",
-            "null"
+            item[3]
         ]
         csv_data.append(_data)
     write_data_to_csv(csv_names_list, csv_data, filename)
@@ -245,42 +238,59 @@ def export_data(filtered_data, indicator, label):
         csv_data = []
         for org, count in value.items():
             _data = [
+                'PSEZ9mIUwwe',
                 indicator,
                 day_str,
                 org,
                 "HllvX50cXC0",
                 "HllvX50cXC0",
-                count,
-                "admin",
-                "",
-                "",
-                "FALSE",
-                "null"
+                count
             ]
             csv_data.append(_data)
         write_data_to_csv(csv_names_list, csv_data, filename)
 
 
+def csv_to_json(csv_file_path):
+    json_data = []
+    with open(csv_file_path, 'r', newline='') as csv_file:
+        # Create a CSV DictReader
+        csv_reader = csv.DictReader(csv_file)
+
+        # Iterate through each row in the CSV
+        for row in csv_reader:
+            res = {
+                "dataSet": row.get("dataSet"),
+                "period": row.get("period"),
+                "orgUnit": row.get("orgUnit"),
+                "attributeOptionCombo": row.get("attributeOptionCombo"),
+                "dataValues": [
+                    {
+                        "dataElement": row.get("dataElement"),
+                        "categoryOptionCombo": row.get("categoryOptionCombo"),
+                        "value": row.get("value")
+                    }
+                ]
+            }
+            json_data.append(res)
+    return json_data
+
+
 def post_csv_data(filename):
     # Post the CSV file to the specified URL
-    post_url = f"{base_post_url}/hmis/api/dataValueSets?async=true&dryRun=false&" \
-               "strategy=NEW_AND_UPDATES&preheatCache=false&skipAudit=false&dataElementIdScheme=UID&" \
-               "orgUnitIdScheme=UID&idScheme=UID&skipExistingCheck=true&format=csv&firstRowIsHeader=true"
+    post_url = f"{base_post_url}/hmis/api/dataValueSets"
 
-    with open(filename, 'rb') as file:
-        headers = {
-            'Content-Type': 'application/csv'
-        }
-
-        response = requests.post(post_url, files={"file": file}, headers=headers,
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    json_data = csv_to_json(filename)
+    print("Posting data: started")
+    success_count = 0
+    for data_entry in json_data:
+        response = requests.post(post_url, data=json.dumps(data_entry), headers=headers,
                                  auth=HTTPBasicAuth(post_username, post_password))
-
-    if response.status_code == 200:
-        # os.remove(filename)
-        print(f"CSV file '{filename}' posted successfully.")
-        print("Server response:", response.text)
-    else:
-        print(f"Failed to post CSV file '{filename}'. Error: {response.text}")
+        if response.status_code == 200:
+            success_count += 1
+    print(f"Posting data: completed with {success_count}/{len(json_data)}")
 
 
 def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', delete_after_merge=True):
@@ -293,7 +303,8 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
             delete_after_merge (bool, optional): Whether to delete the original CSV files after merging. Default is True.
     """
     # Get a list of all CSV files in the folder
-    csv_files = [file for file in os.listdir(folder_path) if file.endswith('.csv') and '1970' not in file]
+    csv_files = [file for file in os.listdir(folder_path) if file.endswith('.csv') and (
+            '1970' not in file)]
 
     # Initialize an empty DataFrame to store the merged data
     merged_df = pd.DataFrame()
@@ -317,7 +328,8 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
                 continue
             file_path = os.path.join(folder_path, file)
             os.remove(file_path)
-    # post_csv_data(output_file_path)
+    # print(csv_to_json(output_file_path))
+    post_csv_data(output_file_path)
 
 
 def get_url(start, end, last7=False):
@@ -411,6 +423,24 @@ def run(
     export_data(filtered_data, indicator, label_text)
 
 
+def delete_csv_files(directory="."):
+    """
+    Deletes all CSV files in the specified directory (current directory by default).
+
+    Args:
+        directory (str): The directory where CSV files should be deleted. Default is current directory.
+    """
+    csv_files = [file for file in os.listdir(directory) if file.endswith(".csv")]
+
+    for csv_file in csv_files:
+        file_path = os.path.join(directory, csv_file)
+        try:
+            os.remove(file_path)
+            print(f"Deleted: {file_path}")
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+
+
 if __name__ == '__main__':
     print(
         f"Using {base_get_url} for GET requests"
@@ -418,6 +448,7 @@ if __name__ == '__main__':
     print(
         f"Using {base_post_url} for POST requests"
     )
+    delete_csv_files()
     # get records created today
     run()
     # get records not approved in the last seven days
