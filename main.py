@@ -207,9 +207,7 @@ def count_for_next_month():
     write_data_to_csv(csv_names_list, csv_data, filename)
 
 
-
 def retrieve_data_with_basic_auth(url):
-    print(url)
     response = requests.get(url, auth=(get_username, get_password))
     if response.status_code == 200:
         return response.json()
@@ -251,28 +249,26 @@ def export_data(filtered_data, indicator, label):
 
 
 def csv_to_json(csv_file_path):
-    json_data = []
+    res = None
     with open(csv_file_path, 'r', newline='') as csv_file:
         # Create a CSV DictReader
         csv_reader = csv.DictReader(csv_file)
-
+        res = {
+            "dataSet": next(csv_reader).get("dataSet"),
+            "dataValues": []
+        }
         # Iterate through each row in the CSV
         for row in csv_reader:
-            res = {
-                "dataSet": row.get("dataSet"),
-                "period": row.get("period"),
-                "orgUnit": row.get("orgUnit"),
-                "attributeOptionCombo": row.get("attributeOptionCombo"),
-                "dataValues": [
-                    {
-                        "dataElement": row.get("dataElement"),
-                        "categoryOptionCombo": row.get("categoryOptionCombo"),
-                        "value": row.get("value")
-                    }
-                ]
-            }
-            json_data.append(res)
-    return json_data
+            res.get("dataValues").append(
+                {
+                    "dataElement": row.get("dataElement"),
+                    "categoryOptionCombo": row.get("categoryOptionCombo"),
+                    "value": row.get("value"),
+                    "period": row.get("period"),
+                    "orgUnit": row.get("orgUnit"),
+                    "attributeOptionCombo": row.get("attributeOptionCombo"),
+                })
+    return res
 
 
 def post_csv_data(filename):
@@ -284,13 +280,13 @@ def post_csv_data(filename):
     }
     json_data = csv_to_json(filename)
     print("Posting data: started")
-    success_count = 0
-    for data_entry in json_data:
-        response = requests.post(post_url, data=json.dumps(data_entry), headers=headers,
-                                 auth=HTTPBasicAuth(post_username, post_password))
-        if response.status_code == 200:
-            success_count += 1
-    print(f"Posting data: completed with {success_count}/{len(json_data)}")
+    response = requests.post(post_url, data=json.dumps(json_data), headers=headers,
+                             auth=HTTPBasicAuth(post_username, post_password))
+    if response.status_code == 200:
+        print(f"Data posted successfully.")
+        print("Server response:", response.text)
+    else:
+        print(f"Failed to post data. Error: {response.text}")
 
 
 def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', delete_after_merge=True):
