@@ -190,7 +190,11 @@ def convert_date_format(input_date):
 def count_for_next_month():
     print("Retrieving totals")
     data = retrieve_data_with_basic_auth(data_totals_url)
-    print(f"Data received: {len(data.get('rows', []))}")
+    print(f"Data received: {len(data.get('rows', [])) if not isinstance(data, list) else len(data)}")
+
+    if not data or isinstance(data, list):
+        return
+
     filename = f'data_totals.csv'
     csv_data = []
     for item in data.get('rows', []):
@@ -211,6 +215,7 @@ def retrieve_data_with_basic_auth(url):
     response = requests.get(url, auth=(get_username, get_password))
     if response.status_code == 200:
         return response.json()
+    print(f"Server Message: {response.text}")
     return []
 
 
@@ -338,11 +343,13 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
 
 
 def get_url(start, end, last7=False):
-    return f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
+    __url__ = f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&paging=false&' \
            f'order=created&includeAllDataElements=true&attributeCc=UjXPudXlraY&' \
            f'attributeCos=l4UMmqvSBe5&startDate={start}&endDate={end}' \
         if (not last7) else (f'{base_get_url}/api/37/events/query.json?programStage=aKclf7Yl1PE&'
                              f'paging=false&startDate={start}&endDate={end}')
+    print(__url__)
+    return __url__
 
 
 def get_last_month_dates():
@@ -456,7 +463,7 @@ if __name__ == '__main__':
         f"Using {base_post_url} for POST requests"
     )
     delete_csv_files()
-    # # get records created today
+    # get records created today
     run()
     # get records not approved in the last seven days
     run(last_seven_days=True, not_approved=True)
