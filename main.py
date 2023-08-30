@@ -279,6 +279,15 @@ def post_csv_data(filename):
         'Content-Type': 'application/json'
     }
     json_data = csv_to_json(filename)
+    print("#####################################################")
+    print(post_url)
+    file_path = f"{post_url.replace('/', '_').replace(':', '').replace('.', '')}.json"
+
+    # Write JSON data to the file
+    with open(file_path, "w") as json_file:
+        json.dump(json_data, json_file, indent=4)
+
+    print("#####################################################")
     print("Posting data: started")
     response = requests.post(post_url, data=json.dumps(json_data), headers=headers,
                              auth=HTTPBasicAuth(post_username, post_password))
@@ -377,7 +386,9 @@ def run(
             url = get_url(start, end)
 
     data = retrieve_data_with_basic_auth(url)
-    print(f"Data received: {len(data.get('rows', []))}")
+    print(f"Data received: {len(data.get('rows', [])) if not isinstance(data, list) else len(data)}")
+    if not data or isinstance(data, list):
+        return
     log_text = ''
     label_text = 'created'
     filtered_data = {}
@@ -445,7 +456,7 @@ if __name__ == '__main__':
         f"Using {base_post_url} for POST requests"
     )
     delete_csv_files()
-    # get records created today
+    # # get records created today
     run()
     # get records not approved in the last seven days
     run(last_seven_days=True, not_approved=True)
@@ -461,5 +472,8 @@ if __name__ == '__main__':
     count_for_next_month()
 
     folder_path = os.path.dirname(os.path.abspath(__file__))  # Set the current directory as the folder path
-    merge_csv_files_in_folder(folder_path)
+    try:
+        merge_csv_files_in_folder(folder_path)
+    except Exception:
+        pass
 
