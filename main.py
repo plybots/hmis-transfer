@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import json
 import os
@@ -8,22 +9,22 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 ''' POST CREDENTIALS '''
-base_post_url = "https://ug.sk-engine.cloud"
-post_username = 'admin'
-post_password = 'Nomisr123$'
+base_post_url = "https://hmis-tests.health.go.ug"
+post_username = 'hisp.skununka'
+post_password = 'Nomisr123$$'
 
 ''' GET CREDENTIALS '''
 base_get_url = 'https://hmis.health.go.ug'
 get_username = 'moh-rch.dmurokora'
-get_password = 'Dhis@2022'
+get_password = 'Dhis@2023'
 
 error_date = '1970-01-01 00:00:00.00'
 
-data_totals_url = 'https://hmis.health.go.ug/api/37/analytics?' \
-                  'dimension=pe%3A202306%3B202301%3B202302%3B202303%' \
-                  '3B202304%3B202305%3B202307%3B202308%3B202309%3B202310%' \
-                  '3B202311%3B202312,ou%3ALEVEL-Sg9YZ6o7bCQ,dx%3AvyOajQA5xTu%3BT8W0wbzErSF&' \
-                  'displayProperty=NAME&includeNumDen=true&skipMeta=true&skipData=false'
+data_totals_url = f'{base_get_url}/api/37/analytics?' \
+                   'dimension=pe%3A202301%3B202302%3B202303%3B202304%3B202305%' \
+                   '3B202306%3B202307%3B202308%3B202309%3B202310%3B202311%3B202312,ou%3' \
+                   'ALEVEL-Sg9YZ6o7bCQ&filter=dx%3AgN1cmykV4Ff&displayProperty=NAME&includeNumDen=true' \
+                   '&skipMeta=true&skipData=false'
 
 csv_names_list = [
     "dataSet",
@@ -176,12 +177,14 @@ def filter_by_week(
 
 def convert_date_format(input_date):
     input_date_obj = datetime.strptime(input_date, "%Y%m")
-    new_month = input_date_obj.month + 1
-    if new_month > 12:
-        new_month = 1
-        new_year = input_date_obj.year + 1
-    else:
-        new_year = input_date_obj.year
+    # new_month = input_date_obj.month + 1
+    # if new_month > 12:
+    #     new_month = 1
+    #     new_year = input_date_obj.year + 1
+    # else:
+    #     new_year = input_date_obj.year
+    new_month = input_date_obj.month
+    new_year = input_date_obj.year
     new_date_obj = datetime(new_year, new_month, 1)
     new_date_str = new_date_obj.strftime("%Y-%m-%d")
     return new_date_str
@@ -201,17 +204,18 @@ def count_for_next_month():
         _data = [
             'PSEZ9mIUwwe',
             'IlxRlGJLPdU',
-            convert_date_format(item[1]),
-            item[2],
+            convert_date_format(item[0]),
+            item[1],
             "HllvX50cXC0",
             "HllvX50cXC0",
-            item[3]
+            item[2]
         ]
         csv_data.append(_data)
     write_data_to_csv(csv_names_list, csv_data, filename)
 
 
 def retrieve_data_with_basic_auth(url):
+    print(url)
     response = requests.get(url, auth=(get_username, get_password))
     if response.status_code == 200:
         return response.json()
@@ -276,7 +280,7 @@ def csv_to_json(csv_file_path):
     return res
 
 
-def post_csv_data(filename):
+async def post_csv_data(filename):
     # Post the CSV file to the specified URL
     post_url = f"{base_post_url}/hmis/api/dataValueSets"
 
@@ -298,12 +302,11 @@ def post_csv_data(filename):
                              auth=HTTPBasicAuth(post_username, post_password))
     if response.status_code == 200:
         print(f"Data posted successfully.")
-        print("Server response:", response.text)
     else:
         print(f"Failed to post data. Error: {response.text}")
 
 
-def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', delete_after_merge=True):
+async def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', delete_after_merge=True):
     """
         Merge all CSV files in the given folder into one.
 
@@ -339,7 +342,13 @@ def merge_csv_files_in_folder(folder_path, output_file_name='merged_file.csv', d
             file_path = os.path.join(folder_path, file)
             os.remove(file_path)
     # print(csv_to_json(output_file_path))
-    post_csv_data(output_file_path)
+    print("Sending the POST request...")
+    task = asyncio.create_task(post_csv_data(output_file_path))
+    # You can add a progress indicator here, such as a loading animation or a message.
+    while not task.done():
+        print("Waiting for the response...")
+        await asyncio.sleep(1)  # You can adjust the delay as needed.
+
 
 
 def get_url(start, end, last7=False):
@@ -463,24 +472,24 @@ if __name__ == '__main__':
         f"Using {base_post_url} for POST requests"
     )
     delete_csv_files()
-    # get records created today
-    run()
-    # get records not approved in the last seven days
-    run(last_seven_days=True, not_approved=True)
-    # get notifications for all months
-    run(notifications_all_months=True)
-    # get notifications for today
-    run(notifications_today=True)
-    # get notifications for last month
-    run(notifications_last_month=True)
-    # get certifications for last month
-    run(certifications_last_month=True)
-    # get totals
+    # # get records created today
+    # run()
+    # # get records not approved in the last seven days
+    # run(last_seven_days=True, not_approved=True)
+    # # get notifications for all months
+    # run(notifications_all_months=True)
+    # # get notifications for today
+    # run(notifications_today=True)
+    # # get notifications for last month
+    # run(notifications_last_month=True)
+    # # get certifications for last month
+    # run(certifications_last_month=True)
+    # # get totals
     count_for_next_month()
 
     folder_path = os.path.dirname(os.path.abspath(__file__))  # Set the current directory as the folder path
     try:
-        merge_csv_files_in_folder(folder_path)
+        asyncio.run(merge_csv_files_in_folder(folder_path))
     except Exception:
         pass
 
